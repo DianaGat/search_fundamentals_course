@@ -84,8 +84,15 @@ def get_opensearch():
     host = 'localhost'
     port = 9200
     auth = ('admin', 'admin')
-    #### Step 2.a: Create a connection to OpenSearch
-    client = None
+    client = OpenSearch(
+        hosts=[{'host': host, 'port': port}],
+        http_compress=True,
+        http_auth=auth,
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False,
+    )
     return client
 
 
@@ -98,17 +105,84 @@ def index_file(file, index_name):
     children = root.findall("./product")
     docs = []
     for child in children:
-        doc = {}
+        doc = {
+    "productId": "12345",
+    "sku": "SKU12345",
+    "name": "Sample Product",
+    "type": "Electronics",
+    "startDate": "2023-01-01",
+    "active": "true",
+    "regularPrice": "299.99",
+    "salePrice": "279.99",
+    "artistName": "Artist XYZ",
+    "onSale": "false",
+    "digital": "false",
+    "frequentlyPurchasedWith": ["ProductA", "ProductB"],
+    "accessories": ["Accessory1", "Accessory2"],
+    "relatedProducts": ["ProductC", "ProductD"],
+    "crossSell": "ProductE",
+    "salesRankShortTerm": "5",
+    "salesRankMediumTerm": "15",
+    "salesRankLongTerm": "30",
+    "bestSellingRank": "10",
+    "url": "http://example.com/product",
+    "categoryPath": ["Electronics", "Gadgets"],
+    "categoryPathIds": ["123", "456"],
+    "categoryLeaf": "789",
+    "categoryPathCount": "2",
+    "customerReviewCount": "100",
+    "customerReviewAverage": "4.5",
+    "inStoreAvailability": "true",
+    "onlineAvailability": "true",
+    "releaseDate": "2023-02-01",
+    "shippingCost": "0.00",
+    "shortDescription": "A brief description of the product.",
+    "shortDescriptionHtml": "<p>A brief description of the product.</p>",
+    "class": "Electronics",
+    "classId": "001",
+    "subclass": "Gadgets",
+    "subclassId": "002",
+    "department": "Tech",
+    "departmentId": "003",
+    "bestBuyItemId": "BB12345",
+    "description": "A detailed description of the product.",
+    "manufacturer": "TechCorp",
+    "modelNumber": "TC12345",
+    "image": "http://example.com/image.jpg",
+    "condition": "New",
+    "inStorePickup": "true",
+    "homeDelivery": "true",
+    "quantityLimit": "5",
+    "color": "Black",
+    "depth": "5 inches",
+    "height": "10 inches",
+    "weight": "1.5 lbs",
+    "shippingWeight": "2 lbs",
+    "width": "3 inches",
+    "longDescription": "A very detailed description of the product.",
+    "longDescriptionHtml": "<p>A very detailed description of the product.</p>",
+    "features": ["Feature1", "Feature2"]
+}
+
         for idx in range(0, len(mappings), 2):
             xpath_expr = mappings[idx]
             key = mappings[idx + 1]
             doc[key] = child.xpath(xpath_expr)
         #print(doc)
         if 'productId' not in doc or len(doc['productId']) == 0:
-            continue
-        #### Step 2.b: Create a valid OpenSearch Doc and bulk index 2000 docs at a time
-        the_doc = None
+            docs.append({'_index': index_name, '_source': doc})
+        
+        # Bulk index every 2000 documents
+        if len(docs) == 2000:
+            bulk(client, docs, request_timeout=60)
+            docs_indexed += len(docs)
+            docs = []
+
+    # Index any remaining documents
+    if docs:
         docs.append(the_doc)
+        bulk(client, docs, request_timeout=60)
+        docs_indexed += len(docs)
 
     return docs_indexed
 

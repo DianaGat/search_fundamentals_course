@@ -94,8 +94,10 @@ def query():
     print("query obj: {}".format(query_obj))
 
     #### Step 4.b.ii
-    response = None   # TODO: Replace me with an appropriate call to OpenSearch
-    # Postprocess results here if you so desire
+    response = opensearch.search(
+            body=query_obj,
+            index="bbuy_products",
+        )
 
     #print(response)
     if error is None:
@@ -107,15 +109,73 @@ def query():
 
 
 def create_query(user_query, filters, sort="_score", sortDir="desc"):
-    print("Query: {} Filters: {} Sort: {}".format(user_query, filters, sort))
+    print(f"Query: {user_query} Filters: {filters} Sort: {sort}".format(user_query, filters, sort))
+    # Define the query object
     query_obj = {
         'size': 10,
+        "sort": [
+            {
+                sort: {
+                    "order": sortDir
+                }
+            }
+        ],
         "query": {
-            "match_all": {} # Replace me with a query that both searches and filters
+            "bool": {
+                "must": [
+                    {
+                        "query_string": {
+                            "fields": [
+                                "name^100",
+                                "shortDescription^50",
+                                "longDescription^10",
+                            ],
+                            "query": user_query,
+                            "phrase_slop": 3,
+                        }
+                    }
+                ],
+                "filter": filters,
+            }
         },
         "aggs": {
-            #### Step 4.b.i: create the appropriate query and aggregations here
-
-        }
+            "regularPrice": {
+                "range": {
+                    "field": "regularPrice",
+                    "ranges": [
+                        {"from": 0, "to": 20},
+                        {"from": 20, "to": 40},
+                        {"from": 40, "to": 60},
+                        {"from": 100},
+                    ],
+                }
+            },
+            "department": {
+                "terms": {
+                    "field": "department"
+                }
+            },
+            "missing_images": {
+                "missing": {
+                    "field": "image"
+                }
+            }
+        },
+        "highlight": {
+            "fields": {
+                "name": {
+                    "pre_tags": ["<mark>"],
+                    "post_tags": ["</mark>"]
+                },
+                "shortDescription": {
+                    "pre_tags": ["<mark>"],
+                    "post_tags": ["</mark>"]
+                },
+                "longDescription": {
+                    "pre_tags": ["<mark>"],
+                    "post_tags": ["</mark>"]
+                }
+            }
+        },
     }
     return query_obj
